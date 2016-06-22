@@ -1,0 +1,556 @@
+<!doctype html>
+<html>
+
+<head>
+    <title>Votes</title>
+    <script src="http://code.jquery.com/jquery-1.11.1.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="text/javascript" src="https://rawgithub.com/craftyjs/Crafty/release/dist/crafty-min.js"></script>
+</head>
+
+<body>
+
+    <div id="page1">
+        <form action="">
+            <label for="name">Your Name</label>
+            <input id="name" autocomplete="off" />
+            <button>Send</button>
+        </form>
+    </div>
+    <div id="page2" style="display:none">
+        Loading...
+    </div>
+    <div id="page3" style="display:none">
+        Waiting for game to launch.
+        <br /> Your Name: <span id="yourName"></span>
+        <br /> Your ID: <span id="yourID"></span>
+        <br />
+        <br /> Number of players <span id="numOfPlayers"></span>
+        <ul id="playerList"></ul>
+    </div>
+    <div id="page4" style="display:none">
+        <div id="game0" style="display:block">
+            Game 1
+            <br />Your Name: <span id="yourName2"></span>
+            <br />Your Team <span id="yourTeam"></span>
+            <br />
+            <hr/>
+            <br />
+            <div id="alertMessage"></div>
+            <div id="countdown">
+                <h2>Time: <span id="counter">PAUSED
+                </span></h2>
+            </div>
+            <div id="teamVotes" style="display:none">
+                <!--UP <span id="votes_up">0</span>
+                <br /> DOWN <span id="votes_down">0</span>
+                <br /> LEFT <span id="votes_left">0</span>
+                <br /> RIGHT <span id="votes_right">0</span>
+                <br />-->
+                Waiting for team...
+            </div>
+            <div id="voteOptions" style="display:none">
+                <button id="actionUP">UP</button>
+                <button id="actionDOWN">DOWN</button>
+                <button id="actionLEFT">LEFT</button>
+                <button id="actionRIGHT">RIGHT</button>
+            </div>
+            <div id="test-map"></div>
+        </div>
+    </div>
+
+
+
+    <script>
+        var socket = io();
+        var myID;
+        var myName;
+        var myTeam = 0;
+        var theGame;
+
+        var countdownTime = 15;
+        var currentCountdownTime = 0;
+        var countdownPaused = false;
+        var data;
+        var player;
+        var userPath;
+        var gameRunning = false;
+        var decisionOptions = [];
+        var movementHistory = [];
+        var teams = [
+            {
+                name: "Red",
+                path: 0,
+                position: 0,
+                playerObj: null
+                    },
+            {
+                name: "Blue",
+                path: 0,
+                position: 0,
+                playerObj: null
+                    }
+                ];
+
+        function startGame(gameID) {
+            $.getJSON('map/' + gameID + '-paths.json', function (data) {
+                console.log("map data");
+                userPath = data;
+            });
+
+            $.getJSON('map/' + gameID + '.json', function (data) {
+                data = data;
+                console.log(data);
+
+                Crafty.init('100%', (data.tileheight * (data.height - 3)) + 15, document.getElementById(gameID));
+                //Crafty.background('green');
+                Crafty.viewport.mouselook(true);
+                var iso = Crafty.diamondIso.init(data.tilewidth, data.tileheight, data.width, data.height, ($("#" + gameID).width() / 2) + 150, data.tileheight * 2);
+
+                var x = 0;
+                var y = 0;
+
+                data.layers[0].data.forEach(function (layerID, key) {
+
+                    if (y != data.height) {
+                        var tile = Crafty.e("2D, DOM, Image").image("map/" + gameID + data.tilesets[0].tiles[layerID - 1].image).attr({
+                            h: data.tilewidth * 2,
+                            w: data.tileheight * 2,
+                        });
+                        iso.place(tile, x, y, 0);
+                        tile.bind("Click", function () {
+                            console.log(this._gridLoc);
+                        });
+
+
+                        x++;
+                        if (x == data.width) {
+                            y++;
+                            x = 0;
+                        }
+                    }
+                });
+
+                teams.forEach(function (obj, index) {
+                    var imageRef = "";
+                    if (index == 0) {
+                        imageRef = "char-red";
+                    } else {
+                        imageRef = "char-blue";
+                    }
+                    obj.playerObj = Crafty.e("2D, DOM, Image").image("map/" + gameID + "/" + imageRef + ".png").attr({
+                        h: data.tilewidth * 2,
+                        w: data.tileheight * 2,
+                        x: Crafty.diamondIso.getTile(2, 10, 1).x,
+                        y: Crafty.diamondIso.getTile(2, 10, 1).y,
+                        z: 100
+                    });
+                });
+
+                movementHistory.push({
+                    x: Crafty.diamondIso.getTile(2, 10, 1).x,
+                    y: Crafty.diamondIso.getTile(2, 10, 1).y,
+                    path: 0,
+                    position: 0
+                });
+
+                gameRunning = true;
+
+            });
+        }
+
+
+
+
+
+        function movePlayer(x, y, teamID) {
+            teams[teamID].playerObj.x = Crafty.diamondIso.getTile(x, y, 1).x;
+            teams[teamID].playerObj.y = Crafty.diamondIso.getTile(x, y, 1).y;
+            saveHistory();
+        }
+
+        function movePlayerDirection(directionID, teamID) {
+            if (teams[teamID].position == userPath[teams[teamID].path].nodes.length - 1) {
+                //end of path.. Have some work to do here
+                //convert their movement decision into x and y
+                //go though each of the next paths and grab the first position id
+                //compare xs and ys to determine if can move
+
+                var futurePositionX = currentPositionX = teams[teamID].playerObj.x;
+                var futurePositionY = currentPositionY = teams[teamID].playerObj.y;
+
+                //var futurePositionX;
+                //var futurePositionY;
+
+                switch (directionID) {
+                case 0:
+                    //up
+                    futurePositionX += 50;
+                    futurePositionY -= 25
+                    break;
+                case 1:
+                    //down
+                    futurePositionX -= 50;
+                    futurePositionY += 25
+                    break;
+                case 2:
+                    //left
+                    futurePositionX -= 50;
+                    futurePositionY -= 25
+                    break;
+                case 3:
+                    //right
+                    futurePositionX += 50;
+                    futurePositionY += 25
+                    break;
+                default:
+                    return false;
+                    break;
+                }
+
+
+
+                function canGo(teamID) {
+                    var newPath = false;
+                    userPath[teams[teamID].path].handoff.forEach(function (obj, index) {
+
+                        console.log("OBJ ID = " + obj.id);
+                        var nextTile = Crafty.diamondIso.getTile(userPath[obj.id].nodes[0].x, userPath[obj.id].nodes[0].y, 1);
+                        if (futurePositionX == nextTile.x && futurePositionY == nextTile.y) {
+                            console.log("---Current Position---");
+                            console.log(currentPositionX);
+                            console.log(currentPositionY);
+                            console.log("---Future Position (calculated)---");
+                            console.log(futurePositionX);
+                            console.log(futurePositionY);
+                            console.log("---Going to---");
+                            console.log(nextTile.x);
+                            console.log(nextTile.y);
+                            newPath = userPath[teams[teamID].path].handoff[index].id;
+                        }
+                        console.log(movementHistory[movementHistory.length - 2].y + "== " + futurePositionY);
+                        console.log("current y = " + teams[myTeam].playerObj.y);
+
+                        if (newPath == false && movementHistory[movementHistory.length - 2].x == futurePositionX && movementHistory[movementHistory.length - 2].y == futurePositionY) {
+                            //Previous movement
+                            newPath = -1;
+                            movePlayerToPrevious(teamID);
+                        }
+
+                    });
+                    return newPath;
+                }
+
+                var newPath = canGo(teamID);
+                console.log("newPAth = " + newPath);
+                if (newPath && newPath != -1) {
+                    console.log(newPath);
+                    transitionPlayerToNewPath(newPath, 0, teamID);
+                } else if (newPath != -1) {
+                    if (teamID == myTeam) {
+                        $("#alertMessage").html("That was not a valid move");
+                    } else {
+                        $("#alertMessage").html("That other team made an invalid move");
+                    }
+                }
+
+
+            } else {
+                //get the next item in the path
+                //deterimine if it's the right direction
+                //go or not
+
+                var currentPositionX = teams[teamID].playerObj.x;
+                var currentPositionY = teams[teamID].playerObj.y;
+
+                var nextTile = Crafty.diamondIso.getTile(userPath[teams[teamID].path].nodes[teams[teamID].position + 1].x, userPath[teams[teamID].path].nodes[teams[teamID].position + 1].y, 1);
+                var nextDifferenceX = currentPositionX - nextTile.x;
+                var nextDifferenceY = currentPositionY - nextTile.y;
+
+                var lastDifferenceX = 0;
+                var lastDifferenceY = 0;
+
+                if (movementHistory.length > 1) {
+                    lastDifferenceX = currentPositionX - movementHistory[movementHistory.length - 2].x;
+                    lastDifferenceY = currentPositionY - movementHistory[movementHistory.length - 2].y;
+                }
+
+                console.log("---Current---");
+                console.log(currentPositionX);
+                console.log(currentPositionY);
+                console.log("---Next---");
+                console.log(nextDifferenceX);
+                console.log(nextDifferenceY);
+                console.log("---Last---");
+                console.log(lastDifferenceX);
+                console.log(lastDifferenceY);
+
+                if (canMove(directionID, lastDifferenceX, lastDifferenceY)) {
+                    console.log("previous");
+                    movePlayerToPrevious(teamID);
+                } else if (canMove(directionID, nextDifferenceX, nextDifferenceY)) {
+                    movePlayerToNext(teamID);
+                } else {
+                    if (teamID == myTeam) {
+                        $("#alertMessage").html("That was not a valid move");
+                    } else {
+                        $("#alertMessage").html("That other team made an invalid move");
+                    }
+                }
+
+                function canMove(directionID, xDiff, yDiff) {
+                    switch (directionID) {
+                    case 0:
+                        //up
+                        if (xDiff == -50 && yDiff == 25) {
+                            return true;
+                        }
+                        break;
+                    case 1:
+                        //down
+                        if (xDiff == 50 && yDiff == -25) {
+                            return true;
+                        }
+                        break;
+                    case 2:
+                        //left
+                        if (xDiff == 50 && yDiff == 25) {
+                            return true;
+                        }
+                        break;
+                    case 3:
+                        //right
+                        if (xDiff == -50 && yDiff == -25) {
+                            return true;
+                        }
+                        break;
+                    default:
+                        return false;
+                        break;
+                    }
+                }
+            }
+        }
+
+
+        function movePlayerToNext(teamID) {
+            if (teams[teamID].position == userPath[teams[teamID].path].nodes.length - 1) {
+                console.log("next path");
+                if (teams[teamID].path == 0) {
+                    console.log("transfer");
+                    if (Math.random() < .5) {
+                        transitionPlayerToNewPath(1, 0, teamID);
+                    } else {
+                        transitionPlayerToNewPath(2, 0, teamID);
+                    }
+                } else if (teams[teamID].path == 1 || teams[teamID].path == 2) {
+                    transitionPlayerToNewPath(3, 0, teamID);
+                }
+            } else {
+                teams[teamID].position += 1;
+                movePlayer(userPath[teams[teamID].path].nodes[teams[teamID].position].x, userPath[teams[teamID].path].nodes[teams[teamID].position].y, teamID);
+            }
+        }
+
+        function movePlayerToPrevious(teamID) {
+            if (teams[teamID].path == 0 && teams[teamID].position == 0) {
+                return;
+            }
+            if (teams[teamID].position == 0) {
+                console.log("previous path");
+                if (teams[teamID].path != 0) {
+                    console.log("transfer");
+                    transitionPlayerToNewPath(movementHistory[movementHistory.length - 2].path, movementHistory[movementHistory.length - 2].position, teamID);
+                    //remove the history
+                    movementHistory.pop();
+                    movementHistory.pop();
+                }
+            } else {
+                teams[teamID].position -= 1;
+                console.log(movementHistory.length - 2);
+                movePlayer(userPath[movementHistory[movementHistory.length - 2].path].nodes[movementHistory[movementHistory.length - 2].position].x, userPath[movementHistory[movementHistory.length - 2].path].nodes[movementHistory[movementHistory.length - 2].position].y, teamID);
+                movementHistory.pop();
+                movementHistory.pop();
+            }
+        }
+
+        function transitionPlayerToNewPath(path, position, teamID) {
+            teams[teamID].path = path;
+            position -= 1;
+            teams[teamID].position = position;
+            movePlayerToNext(teamID);
+        }
+
+        $("#actionUP").click(function () {
+            makeVoteDecition(0);
+        });
+        $("#actionDOWN").click(function () {
+            makeVoteDecition(1);
+        });
+        $("#actionLEFT").click(function () {
+            makeVoteDecition(2);
+        });
+        $("#actionRIGHT").click(function () {
+            makeVoteDecition(3);
+        });
+
+        function getNextOptions(teamID) {
+
+        }
+
+        function makeVoteDecition(voteID) {
+            console.log("VOTE");
+            $("#voteOptions").hide();
+            $("#teamVotes").show();
+            socket.emit('vote', myID, myTeam, voteID);
+        }
+
+        function saveHistory() {
+            console.log(myTeam);
+            movementHistory.push({
+                x: teams[myTeam].playerObj.x,
+                y: teams[myTeam].playerObj.y,
+                path: teams[myTeam].path,
+                position: teams[myTeam].position
+            });
+        }
+
+        socket.on('vote result', function (teamID, voteID) {
+            $("#alertMessage").html("");
+            $("#teamVotes").hide();
+            if (voteID == -1 && teamID == myTeam) {
+                $("#alertMessage").html("TIE. Try again.");
+            } else {
+                movePlayerDirection(voteID, teamID);
+            }
+            if (teamID == myTeam) {
+                startCountdown();
+            }
+        });
+    </script>
+
+
+
+    <script>
+        $('form').submit(function () {
+            myName = $('#name').val();
+            socket.emit('register user', myName);
+            $("#page1").hide();
+            $("#page2").show();
+            return false;
+        });
+
+        socket.on('assigned id', function (id, length) {
+            myID = id;
+            $("#yourName").html(myName);
+            $("#yourID").html(myID);
+            $("#numOfPlayers").html(length);
+            $("#page2").hide();
+            $("#page3").show();
+        });
+
+        socket.on('new player', function (name, id, length) {
+            $("#playerList").append("<li id='userId" + id + "'>" + name + "</li>");
+            $("#numOfPlayers").html(length);
+        });
+
+        socket.on('user disconnect', function (id, length) {
+            $('#userId' + id).remove();
+            $("#numOfPlayers").html(length);
+        });
+
+        //GAME SETUP
+        socket.on('starting game', function () {
+            console.log("Game starting. Waiting for data...");
+            socket.emit('request team', myID);
+        });
+
+        socket.on('game info', function (teamID, gameID, gameName) {
+            myTeam = teamID;
+            theGame = gameID;
+            $("#page3").hide();
+            $("#page4").show();
+            $("#game" + theGame).show();
+            startGame(gameName);
+
+            $("#yourTeam").html(myTeam);
+            $("#yourName2").html(myName);
+        });
+
+        //VOTE
+        socket.on('resuming game', function () {
+            if (currentCountdownTime == 0) {
+                startCountdown();
+            } else {
+                resumeCountdown();
+            }
+        });
+
+        socket.on('pausing game', function () {
+            stopCountdown();
+        });
+
+        var timeoutID;
+
+        function startCountdown() {
+            clearTimeout(timeoutID);
+            countdownPaused = false;
+            currentCountdownTime = countdownTime;
+            $("#voteOptions").show();
+            countdown();
+        }
+
+        function countdown() {
+            $("#counter").html(currentCountdownTime);
+            console.log(currentCountdownTime);
+            currentCountdownTime--;
+            timeoutID = setTimeout(function () {
+                if (countdownPaused == true) {
+                    console.log("paused");
+                    stopCountdown();
+                } else if (currentCountdownTime == 0) {
+                    console.log("finished");
+                    finishCountdown();
+                } else {
+                    countdown();
+                }
+            }, 1000);
+        }
+
+        function stopCountdown() {
+            clearTimeout(timeoutID);
+            $("#counter").html("PAUSED at " + currentCountdownTime);
+            $("#voteOptions").hide();
+            countdownPaused = true;
+        }
+
+        function resumeCountdown() {
+            countdownPaused = false;
+            $("#voteOptions").show();
+            countdown();
+        }
+
+        function finishCountdown() {
+            clearTimeout(timeoutID);
+            $("#counter").html("FINISHED!");
+            $("#voteOptions").hide();
+            countdownPaused = true;
+        }
+
+
+        $('#name').focus();
+    </script>
+</body>
+
+</html>
+
+
+
+
+
+
+
+
+
+
+<!-- -->

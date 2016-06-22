@@ -1,0 +1,91 @@
+<!doctype html>
+<html>
+
+<head>
+    <title>Admin</title>
+</head>
+
+<body>
+    Admin Area
+    <div id="page1">
+        <form action="">
+            <label for="name">Password</label>
+            <input id="password" type="password" autocomplete="off" />
+            <button>Submit</button>
+        </form>
+    </div>
+    <div id="page2" style="display:none">
+        <br />
+        <div class="section1">
+            <button id="startGame" disabled="true">Start Game</button>
+        </div>
+        <div class="section2" style="display:none">
+            <button id="pauseGame" disabled="true">Pause</button>
+            <button id="resumeGame">Resume</button>
+        </div>
+        <br />
+        <br /> Number of players <span id="numOfPlayers"></span>
+        <ul id="playerList"></ul>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="http://code.jquery.com/jquery-1.11.1.js"></script>
+    <script>
+        var socket = io();
+        var myID;
+        var myName;
+
+        $('form').submit(function () {
+            socket.emit('admin request', $('#password').val());
+            return false;
+        });
+
+        $('#startGame').click(function () {
+            console.log("Starting Game");
+            socket.emit('start game');
+            $("#page2 .section1").hide();
+            $("#page2 .section2").show();
+        });
+
+        $("#pauseGame").click(function () {
+            $('#pauseGame').prop("disabled", true);
+            $('#resumeGame').prop("disabled", false);
+            socket.emit('pause game');
+        });
+
+        $("#resumeGame").click(function () {
+            $('#pauseGame').prop("disabled", false);
+            $('#resumeGame').prop("disabled", true);
+            socket.emit('resume game');
+        });
+
+        socket.on('admin pass', function () {
+            $("#page1").hide();
+            $("#page2").show();
+        });
+
+        socket.on('new player', function (name, id, length) {
+            $("#playerList").append("<li id='userId" + id + "'>" + name + "</li>");
+            $("#numOfPlayers").html(length);
+            checkIfCanStart(length);
+        });
+
+        socket.on('user disconnect', function (id, length) {
+            $('#userId' + id).remove();
+            $("#numOfPlayers").html(length);
+            checkIfCanStart(length);
+        });
+
+        function checkIfCanStart(length) {
+            if (length > 3) {
+                $('#startGame').prop("disabled", false);
+            } else {
+                $('#startGame').prop("disabled", true);
+            }
+        }
+    </script>
+
+
+</body>
+
+</html>

@@ -1,0 +1,80 @@
+{
+    "height": 11,
+    "layers": [
+        {
+            "data": [1, 1, 1, 1, 1, 1, 1, 10, 1, 1, 1, 1, 6, 1, 1, 5, 11, 12, 11, 4, 6, 1, 1, 1, 6, 6, 1, 1, 1, 6, 2, 11, 15, 11, 3, 1, 1, 6, 1, 1, 1, 1, 6, 1, 1, 1, 1, 6, 1, 1, 1, 1, 7, 1, 1],
+            "height": 11,
+            "name": "Tile Layer 1",
+            "opacity": 1,
+            "type": "tilelayer",
+            "visible": true,
+            "width": 5,
+            "x": 0,
+            "y": 0
+        }],
+    "nextobjectid": 1,
+    "orientation": "isometric",
+    "renderorder": "right-down",
+    "tileheight": 50,
+    "tilesets": [
+        {
+            "columns": 0,
+            "firstgid": 1,
+            "margin": 0,
+            "name": "base",
+            "spacing": 0,
+            "tilecount": 15,
+            "tileheight": 65,
+            "tiles": {
+                "0": {
+                    "image": "/grass.png"
+                },
+                "1": {
+                    "image": "/roadCornerES.png"
+                },
+                "10": {
+                    "image": "/roadNorth.png"
+                },
+                "11": {
+                    "image": "/roadTEast.png"
+                },
+                "12": {
+                    "image": "/roadTNorth.png"
+                },
+                "13": {
+                    "image": "/roadTSouth.png"
+                },
+                "14": {
+                    "image": "/roadTWest.png"
+                },
+                "2": {
+                    "image": "/roadCornerNE.png"
+                },
+                "3": {
+                    "image": "/roadCornerNW.png"
+                },
+                "4": {
+                    "image": "/roadCornerWS.png"
+                },
+                "5": {
+                    "image": "/roadEast.png"
+                },
+                "6": {
+                    "image": "/roadEndEast.png"
+                },
+                "7": {
+                    "image": "/roadEndNorth.png"
+                },
+                "8": {
+                    "image": "/roadEndSouth.png"
+                },
+                "9": {
+                    "image": "/roadEndWest.png"
+                }
+            },
+            "tilewidth": 100
+        }],
+    "tilewidth": 100,
+    "version": 1,
+    "width": 5
+}
