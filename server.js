@@ -266,6 +266,8 @@ io.on('connection', function (socket) {
 });
 */
 
-server.listen(3000, function () {
-    console.log('listening on *:3000');
+app.set('port', (process.env.PORT || 3000));
+
+server.listen(app.get('port'), function () {
+    console.log('Node app is running on port', app.get('port'));
 });
