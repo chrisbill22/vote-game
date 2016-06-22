@@ -11,10 +11,10 @@
 <body>
 
     <div id="page1">
-        <form action="">
+        <form id="signup" action="">
             <label for="name">Your Name</label>
             <input id="name" autocomplete="off" />
-            <button id="signup">Send</button>
+            <button>Send</button>
         </form>
     </div>
     <div id="page2" style="display:none">
@@ -432,11 +432,12 @@
 
 
     <script>
-        $('#signup').click(function () {
+        $('#signup').submit(function () {
             myName = $('#name').val();
             socket.emit('register user', myName);
             $("#page1").hide();
             $("#page2").show();
+            return false;
         });
 
         socket.on('assigned id', function (id, length) {

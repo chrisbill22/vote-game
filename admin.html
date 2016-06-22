@@ -8,10 +8,10 @@
 <body>
     Admin Area
     <div id="page1">
-        <form action="">
+        <form action="" id="passCheck">
             <label for="name">Password</label>
             <input id="password" type="password" autocomplete="off" />
-            <button id="passCheck">Submit</button>
+            <button>Submit</button>
         </form>
     </div>
     <div id="page2" style="display:none">
@@ -35,7 +35,7 @@
         var myID;
         var myName;
 
-        $('#passCheck').click(function () {
+        $('#passCheck').submit(function () {
             socket.emit('admin request', $('#password').val());
             return false;
         });
