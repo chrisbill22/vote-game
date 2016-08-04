@@ -1,37 +1,87 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 
 <head>
     <title>Votes</title>
     <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script type="text/javascript" src="https://rawgithub.com/craftyjs/Crafty/release/dist/crafty-min.js"></script>
+
+    <!-- Bootstrap -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.2/js/bootstrap.min.js" integrity="sha384-vZ2WRJMwsjRMW/8U7i6PWi6AlO1L79snBrmgiDpgIWJ82z8eA5lenwvxbMV1PAh7" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.2/css/bootstrap.min.css" integrity="sha384-y3tfxAZXuh4HwSYylfB+J125MxIs6mR5FOHamPBG064zB+AFeWH94NdvaCBm8qnd" crossorigin="anonymous">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 </head>
 
 <body>
 
+    <div class="pos-f-t">
+        <div class="collapse" id="navbar-header">
+            <div class="container-fluid bg-inverse p-a-1">
+                <h3>Collapsed content</h3>
+                <p>Toggleable via the navbar brand.</p>
+            </div>
+        </div>
+        <div class="navbar navbar-light bg-faded navbar-static-top">
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbar-header">
+                &#9776;
+            </button>
+        </div>
+    </div>
+
+    <br />
+    <br />
+    <br />
+
+
+
     <div id="page1">
-        <form id="signup" action="">
-            <label for="name">Your Name</label>
-            <input id="name" autocomplete="off" />
-            <button>Send</button>
-        </form>
+        <div class="container">
+            <h1>Vote Game</h1>
+            <p class="lead">Team Red vs team Blue. Compete against eachother to see who can reach the end of the maze the fastest!</p>
+            <form id="signup" action="">
+                <div class="input-group">
+                    <input id="name" type="text" class="form-control" placeholder="Your Name">
+                    <span class="input-group-btn">
+                        <button class="btn btn-primary" type="submit">Go!</button>
+                    </span>
+                </div>
+            </form>
+        </div>
     </div>
     <div id="page2" style="display:none">
-        Loading...
+        <div class="container">
+            Loading...
+        </div>
     </div>
     <div id="page3" style="display:none">
-        Waiting for game to launch.
-        <br /> Your Name: <span id="yourName"></span>
-        <br /> Your ID: <span id="yourID"></span>
-        <br />
-        <br /> Number of players <span id="numOfPlayers"></span>
-        <ul id="playerList"></ul>
+        <div class="container">
+            <div class="alert alert-info" role="alert">
+                Waiting for more players. Minimum of 4.
+            </div>
+            <br /> Your Name: <span id="yourName"></span>
+            <br /> Your ID: <span id="yourID"></span>
+            <br />
+            <br />
+            <div style="display:none">Number of players <span id="numOfPlayers"></span></div>
+            <ul id="playerList" class="list-group"></ul>
+        </div>
     </div>
     <div id="page4" style="display:none">
-        <div id="game0" style="display:block">
-            Game 1
-            <br />Your Name: <span id="yourName2"></span>
+        <div id="game0" style="display:block" class="container">
+            <div id="teamVotes" style="display:none">
+                <!--UP <span id="votes_up">0</span>
+                <br /> DOWN <span id="votes_down">0</span>
+                <br /> LEFT <span id="votes_left">0</span>
+                <br /> RIGHT <span id="votes_right">0</span>
+                <br />-->
+                <div class="alert alert-info" role="alert">
+                    Waiting for team...
+                </div>
+            </div>
+
+            <!--Game 1
+            <br />Your Name: <span id="yourName2"></span>-->
             <br />Your Team <span id="yourTeam"></span>
             <br />
             <hr/>
@@ -41,19 +91,12 @@
                 <h2>Time: <span id="counter">PAUSED
                 </span></h2>
             </div>
-            <div id="teamVotes" style="display:none">
-                <!--UP <span id="votes_up">0</span>
-                <br /> DOWN <span id="votes_down">0</span>
-                <br /> LEFT <span id="votes_left">0</span>
-                <br /> RIGHT <span id="votes_right">0</span>
-                <br />-->
-                Waiting for team...
-            </div>
-            <div id="voteOptions" style="display:none">
-                <button id="actionUP">UP</button>
-                <button id="actionDOWN">DOWN</button>
-                <button id="actionLEFT">LEFT</button>
-                <button id="actionRIGHT">RIGHT</button>
+
+            <div id="voteOptions" style="display:none" class="btn-group" role="group">
+                <button id="actionUP" class="btn btn-secondary">UP</button>
+                <button id="actionDOWN" class="btn btn-secondary">DOWN</button>
+                <button id="actionLEFT" class="btn btn-secondary">LEFT</button>
+                <button id="actionRIGHT" class="btn btn-secondary">RIGHT</button>
             </div>
             <div id="test-map"></div>
         </div>
@@ -382,20 +425,31 @@
         }
 
         $("#actionUP").click(function () {
+            $("#actionUP").addClass('btn-primary');
             makeVoteDecition(0);
         });
         $("#actionDOWN").click(function () {
+            $("#actionDOWN").addClass('btn-primary');
             makeVoteDecition(1);
         });
         $("#actionLEFT").click(function () {
+            $("#actionLEFT").addClass('btn-primary');
             makeVoteDecition(2);
         });
         $("#actionRIGHT").click(function () {
+            $("#actionRIGHT").addClass('btn-primary');
             makeVoteDecition(3);
         });
 
         function getNextOptions(teamID) {
 
+        }
+
+        function resetVoteButtonStyles() {
+            $("#actionUP").removeClass('btn-primary');
+            $("#actionDOWN").removeClass('btn-primary');
+            $("#actionLEFT").removeClass('btn-primary');
+            $("#actionRIGHT").removeClass('btn-primary');
         }
 
         function makeVoteDecition(voteID) {
@@ -450,7 +504,7 @@
         });
 
         socket.on('new player', function (name, id, length) {
-            $("#playerList").append("<li id='userId" + id + "'>" + name + "</li>");
+            $("#playerList").append("<li class='list-group-item' id='userId" + id + "'>" + name + "</li>");
             $("#numOfPlayers").html(length);
         });
 
@@ -473,7 +527,7 @@
             $("#game" + theGame).show();
             startGame(gameName);
 
-            $("#yourTeam").html(myTeam);
+            $("#yourTeam").html(teams[myTeam].name);
             $("#yourName2").html(myName);
         });
 
