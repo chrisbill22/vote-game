@@ -7,6 +7,10 @@ var assert = require('assert');
 var url = 'mongodb://localhost:27017/chatTest';
 var users = Array();
 var userID = 0;
+var game = Array();
+var totalGames = 1;
+
+
 var registrationOpen = true;
 var team1 = Array();
 var team2 = Array();
@@ -14,6 +18,10 @@ var team1_votes = Array(0, 0, 0, 0);
 var team2_votes = Array(0, 0, 0, 0);
 var team1_vote_number = 0;
 var team2_vote_number = 0;
+var team1_novote_number = 0;
+var team2_novote_number = 0;
+
+
 
 
 function getMessages(limit, callback) {
@@ -98,13 +106,16 @@ app.get('/map/:id/:image', function (req, res) {
 
 
 io.on('connection', function (socket) {
-    socket.on('register user', function (name) {
+
+//PLAYER
+    socket.on('register player', function (name) {
         console.log(name + ' has joined');
         if (users.length > 0) {
             users.forEach(function (item, id) {
                 socket.emit('new player', item.name, item.id);
             });
         }
+        emitAllBuiltGames();
         users.push({
             id: userID,
             name: name,
@@ -126,7 +137,7 @@ io.on('connection', function (socket) {
     });
 
 
-    //ADMIN
+//ADMIN
     socket.on('admin request', function (pass) {
         if (pass === "1234abcd") {
             socket.emit('admin pass');
@@ -136,11 +147,96 @@ io.on('connection', function (socket) {
                     socket.emit('new player', item.name, item.id, users.length);
                 });
             }
+            emitAllBuiltGames();
         }
     });
+
+
+//GAME BUILD
+    function buildNewGame(gameType) {
+        console.log("building game..")
+            //Define the game
+
+        if (gameType == 0) {
+            //GAME 0 INFORMATION
+            //TEAMS: 2
+            //VOTE OPTIONS: 4
+            game.push({
+                type: 0,
+                numberOfTeams: 2,
+                voteOptions: 4,
+                waitingUsers: Array(),
+                teams: Array({
+                    name:"red",
+                    id:0,
+                    users:Array()
+                }, {name:"blue",
+                    id:1,
+                    users:Array()
+                })
+            });
+        } else {
+            console.error("INVALID GAME TYPE");
+        }
+        var gamePosition = game.length - 1;
+
+        //build the game
+        //set game ID
+        game[gamePosition].ID = totalGames;
+        totalGames++;
+
+        //setup votes for game
+        for (i = 0; i != game[gamePosition].numberOfTeams - 1; i++) {
+            game[gamePosition].teams.push({
+                teamID: i,
+                teamVotes: Array(0, 0, 0, 0),
+                players: Array()
+            });
+        }
+
+        return game[gamePosition].ID;
+    }
+
+    function emitAllBuiltGames() {
+        for (i = 0; i != game.length; i++) {
+            socket.emit("new game build", game[i].ID);
+        }
+    }
+
+    socket.on('build game request', function () {
+        var gameID = buildNewGame(0);
+        io.emit("new game build", gameID);
+    });
+
+    socket.on('delete game', function (ID) {
+        for (i = 0; i != game.length; i++) {
+            if (game[i].ID == ID) {
+                game.splice(i, 1);
+            }
+        }
+    });
+
+//GAME CONTROLLS
+    
+    function returnGameByID(gameID){
+        for (i = 0; i != game.length; i++) {
+            if (game[i].ID == gameID) {
+                return game[i];
+            }
+        }
+    }
+    
+    socket.on('enter game waiting room', function(playerID, gameID){
+        var game = returnGameByID(gameID);
+        game.waitingUsers.push(playerID);
+        io.emit("player entered waiting room", playerID, gameID);
+    });
+    
     socket.on('start game', function () {
+
         console.log("starting game..")
-            //divide up teams randomly
+
+        //divide up teams randomly
         var randomUsers = shuffle(users);
         team1 = randomUsers.splice(0, Math.floor(randomUsers.length / 2));
         team2 = randomUsers;
@@ -149,7 +245,7 @@ io.on('connection', function (socket) {
     });
 
 
-    //GAME SETUP
+//GAME SETUP
     socket.on('request team', function (id) {
         team1.forEach(function (item, count) {
             if (item.id == id) {
@@ -175,59 +271,125 @@ io.on('connection', function (socket) {
 
     socket.on('vote', function (playerID, teamID, voteID) {
         console.log("Incoming Vote");
+        /*if(voteID != -1){
+            if (teamID == 0) {
+                team1_votes[voteID]++;
+                team1_vote_number++;
+                if (team1_vote_number == team1.length) {
+                    console.log("team1 advance");
+                    submitVote(teamID);
+                }
+            } else {
+                team2_votes[voteID] ++;
+                team2_vote_number++;
+                if (team2_vote_number == team2.length) {
+                    console.log("team1 advance");
+                    submitVote(teamID);
+                }
+            }
+        }else{
+            //they never sent in a vote
+            if (teamID == 0) {
+                team1_vote_number++;
+                team1_novote_number++;
+            }else{
+                team2_vote_number++;
+                team1_novote_number++;
+            }
+        }*/
+
+        //------
+
         if (teamID == 0) {
-            team1_votes[voteID] ++;
             team1_vote_number++;
+            //what to do with no vote
+            if (voteID == -1) {
+                team1_novote_number++;
+                console.log("no vote for 1");
+            } else {
+                team1_votes[voteID]++;
+                console.log("vote counted 1-" + voteID);
+            }
+            //if all votes are in
             if (team1_vote_number == team1.length) {
-                console.log("team1 advance");
+                console.log("all votes are in for 1!");
                 submitVote(teamID);
             }
         } else {
-            team2_votes[voteID] ++;
             team2_vote_number++;
+            //what to do with no vote
+            if (voteID == -1) {
+                team2_novote_number++;
+                console.log("no vote for 2");
+            } else {
+                team2_votes[voteID]++;
+                console.log("vote counted 2-" + voteID);
+            }
+            //if all votes are in
             if (team2_vote_number == team2.length) {
-                console.log("team1 advance");
+                console.log("all votes are in for 2!");
                 submitVote(teamID);
             }
         }
+
+
+
+
     });
+
+
 
     function submitVote(teamID) {
         if (teamID == 0) {
-            var tempVote = 0;
-            var tempVoteIndex = 0;
-            var tie = false;
-            team1_votes.forEach(function (item, index) {
-                if (item > tempVote) {
-                    tempVote = item;
-                    finalVoteID = index;
-                    tie = false;
-                } else if (item == tempVote) {
-                    tie = true;
-                    finalVoteID = -1;
-                }
-            });
-            //reset
-            team1_votes = [0, 0, 0, 0];
-            team1_vote_number = 0;
+            if (team1_vote_number - team1_novote_number < 2) {
+                //not enough votes to submit
+                console.log("not enought from team 1 to continue");
+                finalVoteID = -1;
+            } else {
+                var tempVote = 0;
+                var tempVoteIndex = 0;
+                var tie = false;
+                team1_votes.forEach(function (item, index) {
+                    if (item > tempVote) {
+                        tempVote = item;
+                        finalVoteID = index;
+                        tie = false;
+                    } else if (item == tempVote) {
+                        tie = true;
+                        finalVoteID = -1;
+                    }
+                });
+                //reset
+                team1_votes = [0, 0, 0, 0];
+                team1_vote_number = 0;
+                team1_vote_number = 0;
+            }
         } else {
-            var tempVote = 0;
-            var tempVoteIndex = 0;
-            var tie = false;
-            team2_votes.forEach(function (item, index) {
-                if (item > tempVote) {
-                    tempVote = item;
-                    finalVoteID = index;
-                    tie = false;
-                } else if (item == tempVote) {
-                    tie = true;
-                    finalVoteID = -1;
-                }
-            });
-            //reset
-            team2_votes = [0, 0, 0, 0];
-            team2_vote_number = 0;
+            if (team2_vote_number - team2_novote_number < 2) {
+                //not enough votes to submit
+                console.log("not enought from team 2 to continue");
+                finalVoteID = -1;
+            } else {
+                var tempVote = 0;
+                var tempVoteIndex = 0;
+                var tie = false;
+                team2_votes.forEach(function (item, index) {
+                    if (item > tempVote) {
+                        tempVote = item;
+                        finalVoteID = index;
+                        tie = false;
+                    } else if (item == tempVote) {
+                        tie = true;
+                        finalVoteID = -1;
+                    }
+                });
+                //reset
+                team2_votes = [0, 0, 0, 0];
+                team2_vote_number = 0;
+                team2_vote_number = 0;
+            }
         }
+        console.log("vote result = " + teamID + "-" + finalVoteID);
         io.emit('vote result', teamID, finalVoteID);
     }
 });

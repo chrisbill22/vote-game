@@ -18,8 +18,9 @@
     <div class="pos-f-t">
         <div class="collapse" id="navbar-header">
             <div class="container-fluid bg-inverse p-a-1">
-                <h3>Collapsed content</h3>
-                <p>Toggleable via the navbar brand.</p>
+                <h3>Vote Game</h3>
+                <p>This is an example of the real-time vote based gaming system. The core concept is that teams have to work together to complete a task. Future concepts will include team as well as individual actions and consequences. </p>
+                <p>In this game, you and your team memebers will be working to navigate though a series of mazes. The first team to the end of the maze wins.</p>
             </div>
         </div>
         <div class="navbar navbar-light bg-faded navbar-static-top">
@@ -41,7 +42,7 @@
             <p class="lead">Team Red vs team Blue. Compete against eachother to see who can reach the end of the maze the fastest!</p>
             <form id="signup" action="">
                 <div class="input-group">
-                    <input id="name" type="text" class="form-control" placeholder="Your Name">
+                    <input id="name" type="text" class="form-control" placeholder="Your Name" style="background-image:none;">
                     <span class="input-group-btn">
                         <button class="btn btn-primary" type="submit">Go!</button>
                     </span>
@@ -50,17 +51,23 @@
         </div>
     </div>
     <div id="page2" style="display:none">
-        <div class="container">
-            Loading...
+        <div class="card card-block container">
+            <h3 class="card-title">Avaliable Games</h3>
+            <div class="games">
+            </div>
         </div>
     </div>
     <div id="page3" style="display:none">
         <div class="container">
-            <div class="alert alert-info" role="alert">
+            <div class="alert alert-info" role="alert" id="alert-waiting-players">
                 Waiting for more players. Minimum of 4.
+            </div>
+            <div class="alert alert-info" role="alert" id="alert-waiting-admin" style="display:none;">
+                Waiting on Admin to start game.
             </div>
             <br /> Your Name: <span id="yourName"></span>
             <br /> Your ID: <span id="yourID"></span>
+            <br /> Current Game Room: <span id="gameID"></span>
             <br />
             <br />
             <div style="display:none">Number of players <span id="numOfPlayers"></span></div>
@@ -110,9 +117,13 @@
         var myName;
         var myTeam = 0;
         var theGame;
+        
+        var playerCount = 1;
 
-        var countdownTime = 15;
+        var countdownTime = 10;
         var currentCountdownTime = 0;
+        var voteToSend = -1;
+        
         var countdownPaused = false;
         var data;
         var player;
@@ -425,20 +436,24 @@
         }
 
         $("#actionUP").click(function () {
-            $("#actionUP").addClass('btn-primary');
-            makeVoteDecition(0);
+            resetVoteButtonStyles();
+            $("#actionUP").removeClass('btn-secondary').addClass('btn-primary');
+            voteToSend = 0;
         });
         $("#actionDOWN").click(function () {
-            $("#actionDOWN").addClass('btn-primary');
-            makeVoteDecition(1);
+            resetVoteButtonStyles();
+            $("#actionDOWN").removeClass('btn-secondary').addClass('btn-primary');
+            voteToSend = 1;
         });
         $("#actionLEFT").click(function () {
-            $("#actionLEFT").addClass('btn-primary');
-            makeVoteDecition(2);
+            resetVoteButtonStyles();
+            $("#actionLEFT").removeClass('btn-secondary').addClass('btn-primary');
+            voteToSend = 2;
         });
         $("#actionRIGHT").click(function () {
-            $("#actionRIGHT").addClass('btn-primary');
-            makeVoteDecition(3);
+            resetVoteButtonStyles();
+            $("#actionRIGHT").removeClass('btn-secondary').addClass('btn-primary');
+            voteToSend = 3;
         });
 
         function getNextOptions(teamID) {
@@ -446,13 +461,13 @@
         }
 
         function resetVoteButtonStyles() {
-            $("#actionUP").removeClass('btn-primary');
-            $("#actionDOWN").removeClass('btn-primary');
-            $("#actionLEFT").removeClass('btn-primary');
-            $("#actionRIGHT").removeClass('btn-primary');
+            $("#actionUP").removeClass('btn-primary').addClass('btn-secondary');
+            $("#actionDOWN").removeClass('btn-primary').addClass('btn-secondary');
+            $("#actionLEFT").removeClass('btn-primary').addClass('btn-secondary');
+            $("#actionRIGHT").removeClass('btn-primary').addClass('btn-secondary');
         }
 
-        function makeVoteDecition(voteID) {
+        function makeVoteDecision(voteID) {
             console.log("VOTE");
             $("#voteOptions").hide();
             $("#teamVotes").show();
@@ -477,9 +492,10 @@
             } else {
                 movePlayerDirection(voteID, teamID);
             }
-            if (teamID == myTeam) {
+            resetVoteButtonStyles();
+            //if (teamID == myTeam) {
                 startCountdown();
-            }
+            //}
         });
     </script>
 
@@ -488,9 +504,8 @@
     <script>
         $('#signup').submit(function () {
             myName = $('#name').val();
-            socket.emit('register user', myName);
+            socket.emit('register player', myName);
             $("#page1").hide();
-            $("#page2").show();
             return false;
         });
 
@@ -499,13 +514,17 @@
             $("#yourName").html(myName);
             $("#yourID").html(myID);
             $("#numOfPlayers").html(length);
-            $("#page2").hide();
-            $("#page3").show();
+            $("#page2").show();
         });
 
         socket.on('new player', function (name, id, length) {
+            playerCount++;
             $("#playerList").append("<li class='list-group-item' id='userId" + id + "'>" + name + "</li>");
             $("#numOfPlayers").html(length);
+            if(playerCount >= 4){
+                $("#alert-waiting-players").hide();
+                $("#alert-waiting-admin").show();
+            }
         });
 
         socket.on('user disconnect', function (id, length) {
@@ -514,6 +533,31 @@
         });
 
         //GAME SETUP
+        socket.on('new game build', function (gameID) {
+            console.log("new game built");
+            $("#page2 .games").append('<div class="col-sm-3" id="game'+gameID+'"><div class="card card-block game" gameID="'+gameID+'"><h4 class="card-title">GameID: '+gameID+'</h4><p class="card-text"><span class="playerNum">0</span> players</p><a href="#" onClick="enterGame('+gameID+')" class="card-link">Enter Game</a></div></div>');
+        });
+        
+        function enterGame(gameID){
+            socket.emit('enter game waiting room', myID, gameID);
+        }
+        
+        socket.on('player entered waiting room', function(playerID, gameID){
+            console.log("player");
+           if(playerID == myID){
+               console.log("me");
+                $("#page2").fadeOut(500, function(){
+                    $("#page3").fadeIn();
+                    //get players in waiting room
+                });
+           }else{
+               console.log("other for "+gameID);
+               var currentPlayerCount = parseInt($("#game"+gameID+" .playerNum").html());
+               currentPlayerCount++;
+               $("#game"+gameID+" .playerNum").html(currentPlayerCount);
+           }
+        });
+        
         socket.on('starting game', function () {
             console.log("Game starting. Waiting for data...");
             socket.emit('request team', myID);
@@ -589,6 +633,8 @@
             $("#counter").html("FINISHED!");
             $("#voteOptions").hide();
             countdownPaused = true;
+            makeVoteDecision(voteToSend);
+            voteToSend = -1;
         }
 
 

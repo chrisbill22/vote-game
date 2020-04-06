@@ -4,37 +4,58 @@
 <head>
     <title>Admin</title>
 
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+    
     <!-- Bootstrap -->
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.2/js/bootstrap.min.js" integrity="sha384-vZ2WRJMwsjRMW/8U7i6PWi6AlO1L79snBrmgiDpgIWJ82z8eA5lenwvxbMV1PAh7" crossorigin="anonymous"></script>
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.2/css/bootstrap.min.css" integrity="sha384-y3tfxAZXuh4HwSYylfB+J125MxIs6mR5FOHamPBG064zB+AFeWH94NdvaCBm8qnd" crossorigin="anonymous">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.5/css/bootstrap.min.css" integrity="sha384-AysaV+vQoT3kOAXZkl02PThvDr8HYKPZhNT5h/CXfBThSRXQ6jW5DO2ekP5ViFdi" crossorigin="anonymous">
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.5/js/bootstrap.min.js" integrity="sha384-BLiI7JTZm+JWlgKa0M0kGRpJbF2J8q+qreVrKBC47e3K6BW78kGLrCkeRX6I9RoK" crossorigin="anonymous"></script>
+    
+    
 </head>
 
 <body>
-    Admin Area
-    <div id="page1">
-        <form action="" id="passCheck">
-            <label for="name">Password</label>
-            <input id="password" type="password" autocomplete="off" />
-            <button>Submit</button>
-        </form>
-    </div>
-    <div id="page2" style="display:none">
-        <br />
-        <div class="section1">
-            <button id="startGame" disabled="true">Start Game</button>
+    <div class="container">
+        <h1>Admin Area</h1>
+        <div id="page1">
+            <form action="" id="passCheck">
+                <div class="input-group">
+                    <input id="password" type="password" autocomplete="off" class="form-control" placeholder="Password" />
+                    <span class="input-group-btn">
+                        <button class="btn btn-primary">Submit</button>
+                    </span>
+                </div>
+            </form>
         </div>
-        <div class="section2" style="display:none">
-            <button id="pauseGame" disabled="true">Pause</button>
-            <button id="resumeGame">Resume</button>
+        <div id="page2" style="display:none">
+            <br />
+            <div id="main_actions" class="card card-block">
+                <button id="buildGame" class="btn btn-primary">Build New Game</button>
+                <!--<button id="startGame" disabled="true">Start Game</button>-->
+            </div>
+            <div id="inactive_games" class="card card-block">
+                <h3 class="card-title">Inactive Games</h3>
+                <div class="games row"></div>
+            </div>
+            <div id="active_games" class="card card-block">
+                <h3 class="card-title">Active Games</h3>
+                <div class="games row"></div>
+            </div>
+            <div id="avaliable_players" class="card card-block">
+                <h3 class="card-title">Avaliable Players</h3>
+                <div class="players row"></div>
+            </div>
+            <!--<div class="section2" style="display:none">
+                <button id="pauseGame" disabled="true">Pause</button>
+                <button id="resumeGame">Resume</button>
+            </div>
+            <br />
+            <br /> Number of players <span id="numOfPlayers"></span>
+            <ul id="playerList"></ul>-->
         </div>
-        <br />
-        <br /> Number of players <span id="numOfPlayers"></span>
-        <ul id="playerList"></ul>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+    
     <script>
         var socket = io();
         var myID;
@@ -43,6 +64,11 @@
         $('#passCheck').submit(function () {
             socket.emit('admin request', $('#password').val());
             return false;
+        });
+
+        $("#buildGame").click(function () {
+            console.log("requesting new game");
+            socket.emit('build game request');
         });
 
         $('#startGame').click(function () {
@@ -69,10 +95,21 @@
             $("#page2").show();
         });
 
+        socket.on('new game build', function (gameID) {
+            console.log("new game built");
+            $("#inactive_games .games").append('<div class="col-sm-3" id="game'+gameID+'"><div class="card card-block game" gameID="'+gameID+'"><h4 class="card-title">GameID: '+gameID+'</h4><p class="card-text"><span class="playerNum">0</span> players waiting</p><a href="#" class="card-link">Start Game</a><a href="#" onClick="deleteGame('+gameID+')" class="card-link">Delete Game</a></div></div>');
+        });
+
         socket.on('new player', function (name, id, length) {
-            $("#playerList").append("<li id='userId" + id + "'>" + name + "</li>");
-            $("#numOfPlayers").html(length);
+            $("#avaliable_players .players").append('<div class="col-sm-2" id="player'+id+'"><div class="card card-block game" playerID="'+id+'">'+name+'</div></div>');
+            //$("#numOfPlayers").html(length);
             checkIfCanStart(length);
+        });
+        
+        socket.on('player entered waiting room', function(playerID, gameID){
+           var currentPlayerCount = parseInt($("#game"+gameID+" .playerNum").html());
+           currentPlayerCount++;
+           $("#game"+gameID+" .playerNum").html(currentPlayerCount);
         });
 
         socket.on('user disconnect', function (id, length) {
@@ -88,6 +125,14 @@
                 $('#startGame').prop("disabled", true);
             }
         }
+        
+        function deleteGame(ID){
+            socket.emit('delete game', ID);
+            $("#game"+ID).fadeOut(500, function(){
+                this.remove();
+            });
+        }
+        
     </script>
 
 
