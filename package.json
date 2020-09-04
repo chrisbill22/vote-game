@@ -4,7 +4,7 @@
     "description": "Vote game",
     "dependencies": {
         "express": "^4.13.4",
-        "mongodb": "^2.1.18",
+        "mongodb": "^3.6.1",
         "socket.io": "^1.4.6"
     }
 }
